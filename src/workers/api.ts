@@ -29,6 +29,9 @@ export default {
         case '/api/session':
           return handleSession(request, env, corsHeaders);
         
+        case '/api/chat':
+          return handleChat(request, env, corsHeaders);
+        
         case '/api/health':
           return new Response(JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -134,4 +137,46 @@ async function handleSession(request: Request, env: Env, corsHeaders: Record<str
   }
 
   return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+}
+
+async function handleChat(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+  }
+
+  try {
+    const chatRequest = await request.json();
+    
+    // Validate request
+    if (!chatRequest.message || !chatRequest.userId || !chatRequest.sessionId) {
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Get or create Durable Object for this user session
+    const durableObjectId = env.REVIEW_AGENT.idFromName(chatRequest.sessionId);
+    const reviewAgent = env.REVIEW_AGENT.get(durableObjectId);
+
+    // Forward the chat request to the Durable Object
+    const response = await reviewAgent.fetch(new Request('http://internal/chat', {
+      method: 'POST',
+      body: JSON.stringify(chatRequest),
+      headers: { 'Content-Type': 'application/json' }
+    }));
+
+    const chatResponse = await response.json();
+
+    return new Response(JSON.stringify(chatResponse), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to process chat message' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
 }

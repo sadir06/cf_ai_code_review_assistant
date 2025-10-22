@@ -81,6 +81,10 @@ class HelixApp {
         // Other actions
         document.getElementById('clear-code').addEventListener('click', () => this.clearCode());
         document.getElementById('new-analysis').addEventListener('click', () => this.resetApp());
+        
+        // Code actions
+        document.getElementById('copy-code').addEventListener('click', () => this.copyCode());
+        document.getElementById('download-code').addEventListener('click', () => this.downloadCode());
     }
 
     selectLanguage(card) {
@@ -577,6 +581,90 @@ class HelixApp {
         document.getElementById('chat-messages').innerHTML = '';
         
         this.goToStep('language');
+    }
+
+    copyCode() {
+        if (!this.code) return;
+        
+        navigator.clipboard.writeText(this.code).then(() => {
+            // Show success animation
+            const copyBtn = document.getElementById('copy-code');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✓ Copied!';
+            copyBtn.style.background = 'var(--success)';
+            copyBtn.style.color = 'white';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.background = '';
+                copyBtn.style.color = '';
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy code:', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = this.code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            // Show success animation
+            const copyBtn = document.getElementById('copy-code');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✓ Copied!';
+            copyBtn.style.background = 'var(--success)';
+            copyBtn.style.color = 'white';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.background = '';
+                copyBtn.style.color = '';
+            }, 2000);
+        });
+    }
+
+    downloadCode() {
+        if (!this.code) return;
+        
+        // Determine file extension based on language
+        const extensions = {
+            javascript: 'js',
+            typescript: 'ts',
+            python: 'py',
+            java: 'java',
+            cpp: 'cpp',
+            go: 'go',
+            rust: 'rs',
+            php: 'php'
+        };
+        
+        const extension = extensions[this.selectedLanguage] || 'txt';
+        const filename = `helix-code-${Date.now()}.${extension}`;
+        
+        // Create blob and download
+        const blob = new Blob([this.code], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show success animation
+        const downloadBtn = document.getElementById('download-code');
+        const originalText = downloadBtn.textContent;
+        downloadBtn.textContent = '✓ Downloaded!';
+        downloadBtn.style.background = 'var(--success)';
+        downloadBtn.style.color = 'white';
+        
+        setTimeout(() => {
+            downloadBtn.textContent = originalText;
+            downloadBtn.style.background = '';
+            downloadBtn.style.color = '';
+        }, 2000);
     }
 }
 

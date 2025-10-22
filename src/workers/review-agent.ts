@@ -22,6 +22,8 @@ export class ReviewAgent {
           return this.handleSessionManagement(request);
         case '/conversation':
           return this.handleConversation(request);
+        case '/chat':
+          return this.handleChat(request);
         default:
           return new Response('Not Found', { status: 404 });
       }
@@ -75,29 +77,26 @@ export class ReviewAgent {
     const conversationHistory = await this.loadConversationHistory(request.sessionId);
     
     // Prepare the AI prompt for code review with conversation context
-    const systemPrompt = `You are an expert code reviewer. Analyze the provided ${request.language} code and provide comprehensive feedback including:
-1. Security vulnerabilities
-2. Performance issues
-3. Code style and best practices
-4. Potential bugs
-5. Optimization opportunities
+    const systemPrompt = `You are a code reviewer. Analyze the ${request.language} code and identify ONLY the actual issues.
 
-Provide specific, actionable suggestions with line numbers where applicable.
+${request.context ? `Focus areas: ${request.context}` : ''}
 
-${conversationHistory.length > 0 ? `Previous conversation context:
-${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+IMPORTANT RULES:
+- List ONLY real issues, not general advice
+- For each issue, provide: line number, issue type, brief description, and specific fix
+- Use this EXACT format for each issue:
+  Line X: [TYPE] [DESCRIPTION] | Fix: [SPECIFIC_FIX]
+- Issue types: SECURITY, BUG, PERFORMANCE, STYLE, OPTIMIZATION
+- Be concise - no explanations or extra text
+- Don't repeat the same issue multiple times
 
-Use this context to provide more personalized and relevant feedback.` : ''}`;
+Example format:
+Line 3: BUG Missing semicolon | Fix: Add semicolon after statement
+Line 5: SECURITY Uninitialized variable | Fix: Initialize variable before use`;
 
-    const userPrompt = `Please review this ${request.language} code:
+    const userPrompt = `Review this ${request.language} code:
 
-\`\`\`${request.language}
-${request.code}
-\`\`\`
-
-${request.context ? `Context: ${request.context}` : ''}
-
-Provide a detailed review with specific suggestions.`;
+${request.code}`;
 
     try {
       // Call Llama 3.3 on Workers AI
@@ -106,8 +105,8 @@ Provide a detailed review with specific suggestions.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
-        max_tokens: 2000,
-        temperature: 0.3
+        max_tokens: 800,
+        temperature: 0.1
       });
 
       // Parse the AI response and extract suggestions
@@ -145,55 +144,76 @@ Provide a detailed review with specific suggestions.`;
     const suggestions: CodeSuggestion[] = [];
     const lines = code.split('\n');
     
-    // Split response into sections by headers or numbered items
-    const sections = aiResponse.split(/\n(?=#{1,6}\s|\d+\.\s|\*\s|\-\s|###|##|#)/);
+    // Parse the new clean format: "Line X: [TYPE] [DESCRIPTION] | Fix: [SPECIFIC_FIX]"
+    const issuePattern = /Line\s+(\d+):\s+(\w+)\s+(.+?)\s+\|\s+Fix:\s+(.+)/gi;
+    let match;
     
-    sections.forEach((section, index) => {
-      if (section.trim().length < 20) return; // Skip empty or very short sections
+    while ((match = issuePattern.exec(aiResponse)) !== null) {
+      const lineNumber = parseInt(match[1]);
+      const type = match[2].toLowerCase();
+      const description = match[3].trim();
+      const fix = match[4].trim();
       
-      // Extract line numbers more accurately
-      const lineMatches = section.match(/line\s+(\d+)/gi);
-      const lineNumbers = lineMatches ? lineMatches.map(match => parseInt(match.split(' ')[1])) : [];
-      
-      // Determine suggestion type and severity based on content analysis
-      const { type, severity } = this.analyzeSectionType(section);
-      
-      // Extract clean issue description
-      const issueDescription = this.extractIssueDescription(section);
-      
-      // Extract suggested fix
-      const suggestedFix = this.extractSuggestedFix(section);
-      
-      // Create suggestion for each line number found, or one general suggestion
-      if (lineNumbers.length > 0) {
-        lineNumbers.forEach(lineNumber => {
-          if (lineNumber > 0 && lineNumber <= lines.length) {
-            const codeLine = lines[lineNumber - 1];
-            suggestions.push({
-              id: crypto.randomUUID(),
-              type,
-              severity,
-              line: lineNumber,
-              message: issueDescription,
-              suggestion: suggestedFix,
-              explanation: this.generateCleanExplanation(type, severity, issueDescription, codeLine, suggestedFix)
-            });
-          }
-        });
-      } else {
-        // General suggestion without specific line
+      if (lineNumber > 0 && lineNumber <= lines.length) {
+        const codeLine = lines[lineNumber - 1];
+        
+        // Determine severity based on type
+        let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium';
+        if (type === 'security' || type === 'bug') {
+          severity = 'high';
+        } else if (type === 'style') {
+          severity = 'low';
+        } else if (type === 'performance' || type === 'optimization') {
+          severity = 'medium';
+        }
+        
         suggestions.push({
           id: crypto.randomUUID(),
-          type,
+          type: type as 'security' | 'performance' | 'style' | 'bug' | 'optimization',
           severity,
-          message: issueDescription,
-          suggestion: suggestedFix,
-          explanation: this.generateCleanExplanation(type, severity, issueDescription, null, suggestedFix)
+          line: lineNumber,
+          message: description,
+          suggestion: fix,
+          explanation: `${description} Found in: "${codeLine.trim()}". Suggested fix: ${fix}`
         });
       }
-    });
+    }
+    
+    // If no suggestions were parsed with the new format, try fallback parsing
+    if (suggestions.length === 0) {
+      // Fallback to old parsing method for backward compatibility
+      const sections = aiResponse.split(/\n(?=#{1,6}\s|\d+\.\s|\*\s|\-\s|###|##|#)/);
+      
+      sections.forEach((section, index) => {
+        if (section.trim().length < 20) return;
+        
+        const lineMatches = section.match(/line\s+(\d+)/gi);
+        const lineNumbers = lineMatches ? lineMatches.map(match => parseInt(match.split(' ')[1])) : [];
+        
+        const { type, severity } = this.analyzeSectionType(section);
+        const issueDescription = this.extractIssueDescription(section);
+        const suggestedFix = this.extractSuggestedFix(section);
+        
+        if (lineNumbers.length > 0) {
+          lineNumbers.forEach(lineNumber => {
+            if (lineNumber > 0 && lineNumber <= lines.length) {
+              const codeLine = lines[lineNumber - 1];
+              suggestions.push({
+                id: crypto.randomUUID(),
+                type,
+                severity,
+                line: lineNumber,
+                message: issueDescription,
+                suggestion: suggestedFix,
+                explanation: this.generateCleanExplanation(type, severity, issueDescription, codeLine, suggestedFix)
+              });
+            }
+          });
+        }
+      });
+    }
 
-    // If no suggestions were parsed, create a meaningful general suggestion
+    // If still no suggestions, create a general one
     if (suggestions.length === 0) {
       suggestions.push({
         id: crypto.randomUUID(),
@@ -417,5 +437,92 @@ Provide a detailed review with specific suggestions.`;
     return new Response(JSON.stringify({ message: 'Conversation endpoint' }), {
       headers: { 'Content-Type': 'application/json' }
     });
+  }
+
+  private async handleChat(request: Request): Promise<Response> {
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    try {
+      const chatRequest = await request.json();
+      
+      // Load session data
+      await this.loadSessionData(chatRequest.sessionId);
+
+      // Store user message
+      await this.storeConversationMessage({
+        id: crypto.randomUUID(),
+        sessionId: chatRequest.sessionId,
+        userId: chatRequest.userId,
+        role: 'user',
+        content: chatRequest.message,
+        timestamp: new Date()
+      });
+
+      // Generate AI response
+      const aiResponse = await this.generateChatResponse(chatRequest);
+
+      // Store AI response
+      await this.storeConversationMessage({
+        id: crypto.randomUUID(),
+        sessionId: chatRequest.sessionId,
+        userId: chatRequest.userId,
+        role: 'assistant',
+        content: aiResponse,
+        timestamp: new Date()
+      });
+
+      return new Response(JSON.stringify({ response: aiResponse }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+    } catch (error) {
+      console.error('Chat handler error:', error);
+      return new Response(JSON.stringify({ error: 'Failed to process chat message' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  private async generateChatResponse(chatRequest: any): Promise<string> {
+    try {
+      // Load conversation history for context
+      const conversationHistory = await this.loadConversationHistory(chatRequest.sessionId);
+      
+      // Create context-aware prompt
+      const systemPrompt = `You are Helix, an AI code review assistant. You have just analyzed the user's code and found several issues. The user is now asking follow-up questions about the analysis.
+
+Previous analysis context: ${JSON.stringify(chatRequest.context || {})}
+
+Conversation history:
+${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+User's current question: ${chatRequest.message}
+
+Please provide a helpful, detailed response about the code analysis. Be specific about the issues found and provide actionable advice.`;
+
+      const response = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct', {
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: chatRequest.message
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      return response.response || 'I apologize, but I encountered an issue generating a response. Please try again.';
+
+    } catch (error) {
+      console.error('AI chat generation error:', error);
+      return 'I apologize, but I encountered an issue generating a response. Please try again.';
+    }
   }
 }
