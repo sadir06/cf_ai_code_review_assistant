@@ -1,0 +1,32 @@
+{
+  "name": "cf_ai_code_review_assistant",
+  "version": "1.0.0",
+  "description": "AI-powered code review assistant built on Cloudflare",
+  "main": "src/workers/api.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "pages:dev": "wrangler pages dev src/pages",
+    "pages:deploy": "wrangler pages deploy src/pages",
+    "db:create": "wrangler d1 create code-review-db",
+    "db:migrate": "wrangler d1 migrations apply code-review-db",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "cloudflare",
+    "ai",
+    "code-review",
+    "llama",
+    "workers",
+    "durable-objects"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^3.78.0"
+  },
+  "dependencies": {}
+}

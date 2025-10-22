@@ -1,0 +1,26 @@
+name = "cf-ai-code-review-assistant"
+main = "src/workers/api.ts"
+compatibility_date = "2024-12-18"
+
+[env.production]
+name = "cf-ai-code-review-assistant"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "REVIEW_AGENT"
+class_name = "ReviewAgent"
+
+# Export the Durable Object class
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ReviewAgent"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "code-review-db"
+database_id = "39ca2090-7ed1-4a62-b812-477392f2e300"
+
+# Workers AI
+[ai]
+binding = "AI"

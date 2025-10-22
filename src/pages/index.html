@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helix - AI Code Review Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🧬</div>
+                    <h1>Helix</h1>
+                    <span class="tagline">AI Code Review Assistant</span>
+                </div>
+                <div class="header-actions">
+                    <div class="status">
+                        <div class="status-dot"></div>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Step 1: Language Selection -->
+            <div class="step" id="step-language">
+                <div class="step-content">
+                    <div class="step-header">
+                        <h2>Choose Your Language</h2>
+                        <p>Select the programming language for your code review</p>
+                    </div>
+                    <div class="language-grid">
+                        <div class="language-card" data-lang="javascript">
+                            <div class="language-icon">🟨</div>
+                            <h3>JavaScript</h3>
+                            <p>ES6+, Node.js, React</p>
+                        </div>
+                        <div class="language-card" data-lang="typescript">
+                            <div class="language-icon">🔷</div>
+                            <h3>TypeScript</h3>
+                            <p>Type-safe JavaScript</p>
+                        </div>
+                        <div class="language-card" data-lang="python">
+                            <div class="language-icon">🐍</div>
+                            <h3>Python</h3>
+                            <p>Django, Flask, FastAPI</p>
+                        </div>
+                        <div class="language-card" data-lang="java">
+                            <div class="language-icon">☕</div>
+                            <h3>Java</h3>
+                            <p>Spring, Maven, Gradle</p>
+                        </div>
+                        <div class="language-card" data-lang="cpp">
+                            <div class="language-icon">⚡</div>
+                            <h3>C++</h3>
+                            <p>STL, Boost, Modern C++</p>
+                        </div>
+                        <div class="language-card" data-lang="go">
+                            <div class="language-icon">🐹</div>
+                            <h3>Go</h3>
+                            <p>Goroutines, Gin, Echo</p>
+                        </div>
+                        <div class="language-card" data-lang="rust">
+                            <div class="language-icon">🦀</div>
+                            <h3>Rust</h3>
+                            <p>Memory safety, Performance</p>
+                        </div>
+                        <div class="language-card" data-lang="php">
+                            <div class="language-icon">🐘</div>
+                            <h3>PHP</h3>
+                            <p>Laravel, Symfony</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Code Input -->
+            <div class="step" id="step-code" style="display: none;">
+                <div class="step-content">
+                    <div class="step-header">
+                        <h2>Paste Your Code</h2>
+                        <p>Add your code for AI analysis</p>
+                        <div class="language-badge" id="selected-language-badge"></div>
+                    </div>
+                    <div class="code-container">
+                        <div class="code-editor">
+                            <div class="editor-header">
+                                <div class="file-info">
+                                    <span class="file-name" id="file-name">main.js</span>
+                                    <span class="line-count" id="line-count">0 lines</span>
+                                </div>
+                                <div class="editor-actions">
+                                    <button class="btn-secondary" id="clear-code">Clear</button>
+                                    <button class="btn-secondary" id="format-code">Format</button>
+                                </div>
+                            </div>
+                            <textarea 
+                                id="code-input" 
+                                placeholder="// Paste your code here..."
+                                spellcheck="false"
+                            ></textarea>
+                        </div>
+                        <div class="code-preview" id="code-preview"></div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary" id="back-to-language">← Back</button>
+                        <button class="btn-primary" id="next-to-context" disabled>Next →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Context Input -->
+            <div class="step" id="step-context" style="display: none;">
+                <div class="step-content">
+                    <div class="step-header">
+                        <h2>Add Context</h2>
+                        <p>Tell Helix what you want to focus on</p>
+                    </div>
+                    <div class="context-container">
+                        <div class="context-options">
+                            <h3>Quick Options</h3>
+                            <div class="option-grid">
+                                <button class="option-btn" data-context="security">🔒 Security Review</button>
+                                <button class="option-btn" data-context="performance">⚡ Performance</button>
+                                <button class="option-btn" data-context="style">🎨 Code Style</button>
+                                <button class="option-btn" data-context="bugs">🐛 Bug Detection</button>
+                                <button class="option-btn" data-context="optimization">🚀 Optimization</button>
+                                <button class="option-btn" data-context="best-practices">✨ Best Practices</button>
+                            </div>
+                        </div>
+                        <div class="context-input">
+                            <h3>Custom Context</h3>
+                            <textarea 
+                                id="context-input" 
+                                placeholder="Describe what this code does, any specific concerns, or areas you'd like me to focus on..."
+                                rows="4"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary" id="back-to-code">← Back</button>
+                        <button class="btn-primary" id="start-analysis">Start Analysis</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Analysis -->
+            <div class="step" id="step-analysis" style="display: none;">
+                <div class="step-content">
+                    <div class="analysis-container">
+                        <div class="analysis-header">
+                            <h2>Analyzing Your Code</h2>
+                            <p>Helix is reviewing your code...</p>
+                        </div>
+                        <div class="thinking-animation">
+                            <div class="helix-logo">🧬</div>
+                            <div class="thinking-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <div class="thinking-text">
+                                <span id="thinking-status">Initializing analysis...</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Results -->
+            <div class="step" id="step-results" style="display: none;">
+                <div class="step-content">
+                    <div class="results-container">
+                        <div class="results-header">
+                            <h2>Code Review Results</h2>
+                            <div class="results-summary" id="results-summary"></div>
+                        </div>
+                        <div class="results-content">
+                            <div class="code-display">
+                                <div class="code-header">
+                                    <h3>Your Code</h3>
+                                    <div class="code-actions">
+                                        <button class="btn-secondary" id="copy-code">Copy</button>
+                                        <button class="btn-secondary" id="download-code">Download</button>
+                                    </div>
+                                </div>
+                                <div class="code-block" id="highlighted-code"></div>
+                            </div>
+                            <div class="issues-panel">
+                                <div class="issues-header">
+                                    <h3>Issues Found</h3>
+                                    <div class="filter-tabs">
+                                        <button class="filter-tab active" data-filter="all">All</button>
+                                        <button class="filter-tab" data-filter="critical">Critical</button>
+                                        <button class="filter-tab" data-filter="high">High</button>
+                                        <button class="filter-tab" data-filter="medium">Medium</button>
+                                        <button class="filter-tab" data-filter="low">Low</button>
+                                    </div>
+                                </div>
+                                <div class="issues-list" id="issues-list"></div>
+                            </div>
+                        </div>
+                        <div class="chat-section">
+                            <div class="chat-header">
+                                <h3>💬 Ask Helix</h3>
+                                <p>Get more details about any issue</p>
+                            </div>
+                            <div class="chat-messages" id="chat-messages"></div>
+                            <div class="chat-input-container">
+                                <div class="chat-input">
+                                    <input type="text" id="chat-input" placeholder="Ask about any issue or get suggestions...">
+                                    <button id="send-message" class="send-btn">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step-actions">
+                            <button class="btn-secondary" id="new-analysis">New Analysis</button>
+                            <button class="btn-primary" id="export-results">Export Results</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
